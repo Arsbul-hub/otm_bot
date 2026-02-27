@@ -23,7 +23,7 @@ class Marker(BaseModel):
     __tablename__ = "markers"
     marker_id = Column(Integer, primary_key=True)
     user_id = Column(String, ForeignKey('users.user_id'))
-    timestamp = Column(String)
+    timestamp = Column(DateTime(timezone=True))
     add_timestamp = Column(DateTime(timezone=True))
     all_day = Column(Boolean)
 

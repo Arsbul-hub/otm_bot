@@ -59,7 +59,7 @@ async def process_code_input(msg: Message, state: FSMContext):
         return
     await msg.answer(SUCCESSFULLY_CONNECTED)
 
-@router.message(F.text.isdigit(), IsUserRegistered(), IsElder())
+@router.message(F.text == answers.GET_CODE, IsUserRegistered(), IsElder())
 async def resent_code(msg: Message, state: FSMContext):
     code = get_code_by_owner_id(db, msg.from_user.id)
     if code is not None:

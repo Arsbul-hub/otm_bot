@@ -21,7 +21,7 @@ def create_code(db, user_id) -> int:
 def get_code(db, code_text) -> Code:
     return db.query(Code).get(int(code_text))
 def get_code_by_owner_id(db, owner_id) -> Code:
-    return db.query(Code).filter_by(owner_id=owner_id).first()
+    return db.query(Code).filter_by(owner_id=str(owner_id)).first()
 def delete_code(db, code_id):
     code = db.query(Code).get(code_id)
     if code:

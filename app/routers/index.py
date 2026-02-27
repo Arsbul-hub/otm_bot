@@ -249,8 +249,13 @@ async def show_editable_schedule(msg: Message, state: FSMContext):
 @router.message(StateFilter(Form.schedule_editing), F.text == answers.BACK)
 async def back_from_schedule_edit(msg: Message, state: FSMContext):
     # Просто выходим из редактора без сохранения, если пользователь хочет в главное меню
+    user = get_user(db, msg.from_user.id)
     await state.clear()
-    await msg.answer(MAIN_MENU, reply_markup=admin_start_keyboard2())
+    if user is None:
+        keyboard = admin_start_keyboard1()
+    else:
+        keyboard = admin_start_keyboard2()
+    await msg.answer(MAIN_MENU, reply_markup=keyboard)
 
 
 # Просмотр расписания из основного админ-меню (без редактирования)

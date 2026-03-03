@@ -33,10 +33,10 @@ async def clear_state(state):
 
 
 
-async def save_schedule_and_exit(db, msg, state):
-    data = await state.get_data()
-    editable = data.get("editable_schedule", [])
-    set_schedule(db, editable)
+async def save_schedule_and_exit(db, msg, schedule_list):
+
+
+    set_schedule(db, schedule_list)
     await msg.answer(SCHEDULE_SAVED, reply_markup=schedule_edit_keyboard())
     # await state.clear()
     # # Вернёмся в админское меню

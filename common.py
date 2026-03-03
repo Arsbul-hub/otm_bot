@@ -9,6 +9,8 @@ from app.keyboards import schedule_edit_keyboard
 from app.texts import SCHEDULE_SAVED
 
 from app.dao import set_schedule
+from config import config
+
 
 def get_schedule_item_by_datetime(times, dt_utc):
     times = sorted(times, key=lambda t: time.fromisoformat(t["start"]))
@@ -41,3 +43,7 @@ async def save_schedule_and_exit(db, msg, schedule_list):
     # await state.clear()
     # # Вернёмся в админское меню
     # await msg.answer(MAIN_MENU, reply_markup=admin_start_keyboard2())
+
+
+def is_user_admin(user_id):
+    return user_id == config.DEFAULT_ADMIN_USER_ID

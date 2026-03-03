@@ -46,6 +46,8 @@ def create_user(db, user_id, user_fio, group_id, is_elder):
     db.add(new_user)
     db.commit()
     return new_user
+def get_group_by_name(db, group_name) -> Group:
+    return db.query(Group).filter_by(name=str(group_name).strip().lower()).first()
 def get_group(db, group_id) -> Group:
     return db.query(Group).get(group_id)
 def get_user(db, user_id) -> User:

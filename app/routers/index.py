@@ -21,7 +21,7 @@ from requests import get, post
 from datetime import datetime, timedelta, time, date
 
 from app.texts import *
-from common import clear_state, save_schedule_and_exit
+from common import clear_state, save_schedule_and_exit, is_user_admin
 
 
 @router.message(F.text.isdigit(), ~IsUserRegistered(), F.text.len() == config.CODE_LENGTH)
@@ -82,7 +82,7 @@ async def cmd_start_or_restart(msg: Message, state: FSMContext):
     #     await msg.answer(ENTER_GROUP_NAME_TEXT)
     #     return
     user = get_user(db, msg.from_user.id)
-    if IsAdmin():
+    if is_user_admin(msg.from_user.id):
         if user is None:
             keyboard = admin_start_keyboard1()
         else:
@@ -94,7 +94,7 @@ async def cmd_start_or_restart(msg: Message, state: FSMContext):
         return
 
     if user is None:
-        await msg.answer(GREETING_TEXT, reply_markup=start_keyboard())
+        await msg.answer(GREETING_TEXT, reply_markup=start_keyboard(), parse_mode=None)
         return
     if user.is_elder:
         await msg.answer(HELLO_CAN_MARK, reply_markup=set_state_elder_keyboard())
@@ -367,6 +367,12 @@ async def process_elder_fio(msg: Message, state: FSMContext):
 async def process_group_name(msg: Message, state: FSMContext):
     group_name = msg.text
     user_fio = await state.get_value("user_fio")
+    group = get_group_by_name(db, group_name)
+    if group is not None:
+        await msg.answer(GROUP_ALREADY_EXIST_WITH_THIS_NAME, parse_mode=None)
+        await state.set_state(Form.waiting_for_group_name)
+        await msg.answer(NOW_ENTER_GROUP)
+        return
     await state.update_data(group_name=group_name)
     await state.update_data(user_type="elder")
     await state.set_state(Form.waiting_for_confirm_registration)
@@ -404,12 +410,12 @@ async def process_group_name(msg: Message, state: FSMContext):
 async def mark_current_lesson(msg: Message, state: FSMContext):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard3()
         else:
             keyboard = set_state_elder_keyboard()
     else:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard2()
         else:
             keyboard = set_state_regular_keyboard()
@@ -442,12 +448,12 @@ async def mark_current_lesson(msg: Message, state: FSMContext):
 async def mark_today(msg: Message, state: FSMContext):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard3()
         else:
             keyboard = set_state_elder_keyboard()
     else:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard2()
         else:
             keyboard = set_state_regular_keyboard()
@@ -477,12 +483,12 @@ async def get_marks_current_lesson(msg: Message, state: FSMContext):
     user = get_user(db, msg.from_user.id)
 
     if user.is_elder:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard3()
         else:
             keyboard = set_state_elder_keyboard()
     else:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard2()
         else:
             keyboard = set_state_regular_keyboard()
@@ -510,12 +516,12 @@ async def get_marks_today(msg: Message, state: FSMContext):
     user = get_user(db, msg.from_user.id)
 
     if user.is_elder:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard3()
         else:
             keyboard = set_state_elder_keyboard()
     else:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard2()
         else:
             keyboard = set_state_regular_keyboard()
@@ -563,12 +569,12 @@ async def prompt_for_date(msg: Message, state: FSMContext):
 async def process_date_for_marks(msg: Message, state: FSMContext):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard3()
         else:
             keyboard = set_state_elder_keyboard()
     else:
-        if IsAdmin():
+        if is_user_admin(msg.from_user.id):
             keyboard = admin_start_keyboard2()
         else:
             keyboard = set_state_regular_keyboard()

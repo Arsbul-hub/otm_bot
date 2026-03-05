@@ -312,6 +312,12 @@ async def back_to_main_menu(msg: Message, state: FSMContext):
 @router.message(StateFilter(Form.waiting_for_regular_fio))
 async def process_regular_fio(msg: Message, state: FSMContext):
     fio = msg.text
+    if len(fio) > 30:
+        await msg.answer(LINE_IS_LONG)
+        await msg.answer(ENTER_FIO_PROMPT)
+        await state.set_state(Form.waiting_for_regular_fio)
+        return
+
     group_id = await state.get_value("group_id")
     await state.update_data(user_fio=fio)
     await state.update_data(user_type="regular")
@@ -355,6 +361,11 @@ async def i_am_elder(msg: Message, state: FSMContext):
 @router.message(StateFilter(Form.waiting_for_elder_fio))
 async def process_elder_fio(msg: Message, state: FSMContext):
     fio = msg.text
+    if len(fio) > 30:
+        await msg.answer(LINE_IS_LONG)
+        await msg.answer(ENTER_FIO)
+        await state.set_state(Form.waiting_for_elder_fio)
+        return
     await state.update_data(user_fio=fio)
     await msg.answer(REGISTERED_NOW_ENTER_GROUP)
     await state.set_state(Form.waiting_for_group_name)
@@ -363,6 +374,11 @@ async def process_elder_fio(msg: Message, state: FSMContext):
 @router.message(StateFilter(Form.waiting_for_group_name))
 async def process_group_name(msg: Message, state: FSMContext):
     group_name = msg.text
+    if len(group_name) > 10:
+        await msg.answer(LINE_IS_LONG)
+        await msg.answer(NOW_ENTER_GROUP)
+        await state.set_state(Form.waiting_for_group_name)
+        return
     user_fio = await state.get_value("user_fio")
     group = get_group_by_name(db, group_name)
     if group is not None:
@@ -497,10 +513,11 @@ async def get_marks_current_lesson(msg: Message, state: FSMContext):
     if not markers:
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
-    line = []
-    line.append(MARKED_NOW_HEADER.format(tm[0] + 1, tm[1].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
-                                    tm[2].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
 
+    await msg.answer(MARKED_NOW_HEADER.format(tm[0] + 1, tm[1].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
+                                    tm[2].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')), reply_markup=keyboard)
+
+    line = []
     for m in markers:
         user = get_user(db, m.user_id)
         line.append(MARKED_USER_LINE.format(user.user_fio, m.add_timestamp.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
@@ -530,9 +547,10 @@ async def get_marks_today(msg: Message, state: FSMContext):
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
     schedule = sorted(get_schedule(db), key=lambda a: time.fromisoformat(a["start"]))
-    line = []
-    line.append("Отмеченные на:")
+
+    await msg.answer(MARKED_TODAY_HEADER, reply_markup=keyboard)
     for s in schedule:
+        line = []
         start = time.fromisoformat(s["start"])
         end = time.fromisoformat(s["end"])
         dts = datetime.combine(msg.date.date(), start, tzinfo=pytz.UTC)
@@ -553,8 +571,7 @@ async def get_marks_today(msg: Message, state: FSMContext):
                                             m.add_timestamp.astimezone(pytz.timezone("Europe/Moscow")).strftime(
                                                 '%H:%M')))
         line.append(SEPARATOR)
-    line = "\n".join(line)
-    await msg.answer(line, reply_markup=keyboard)
+        await msg.answer("\n".join(line), reply_markup=keyboard)
 
 
 @router.message(F.text == answers.GET_CHECKS_ON_DATE, IsUserRegistered())
@@ -601,9 +618,11 @@ async def process_date_for_marks(msg: Message, state: FSMContext):
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
     schedule = sorted(get_schedule(db), key=lambda a: time.fromisoformat(a["start"]))
-    line = []
-    line.append(MARKED_ON_DATE_HEADER.format(text))
+
+
+    await msg.answer(MARKED_ON_DATE_HEADER.format(text), reply_markup=keyboard)
     for s in schedule:
+        line = []
         start = time.fromisoformat(s["start"])
         end = time.fromisoformat(s["end"])
         dts = datetime.combine(msg.date.date(), start, tzinfo=pytz.UTC)
@@ -623,8 +642,8 @@ async def process_date_for_marks(msg: Message, state: FSMContext):
                                                 '%H:%M')))
 
         line.append(SEPARATOR)
-    line = "\n".join(line)
-    await msg.answer(line, reply_markup=keyboard)
+        await msg.answer("\n".join(line), reply_markup=keyboard)
+
     # await state.set_state(Form.waiting_for_group_name)
 
 # @router.message(~IsUserRegistered())

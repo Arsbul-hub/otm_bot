@@ -1,8 +1,5 @@
 import time
 
-from threading import Thread
-
-import pytz
 from aiogram import F
 from aiogram.filters import Command, StateFilter
 from aiogram.filters.callback_data import CallbackData
@@ -225,7 +222,7 @@ async def remove_lesson_prompt(msg: Message, state: FSMContext):
             pytz.timezone("Europe/Moscow"))
         end = datetime.combine(msg.date.date(), time.fromisoformat(lesson["end"]), tzinfo=pytz.UTC).astimezone(
             pytz.timezone("Europe/Moscow"))
-        lines.append(f"{i}. {start.strftime("%H:%M")} – {end.strftime("%H:%M")}")
+        lines.append(f'{i}. {start.strftime("%H:%M")} – {end.strftime("%H:%M")}')
     await msg.answer(SCHEDULE_CURRENT.format("\n".join(lines)))
     await msg.answer(ENTER_LESSON_NUMBER_TO_REMOVE, reply_markup=stop_processing_keyboard())
     await state.set_state(Form.waiting_for_remove_index)
@@ -500,14 +497,16 @@ async def get_marks_current_lesson(msg: Message, state: FSMContext):
     if not markers:
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
-
-    line = MARKED_NOW_HEADER.format(tm[0] + 1, tm[1].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
-                                    tm[2].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'))
+    line = []
+    line.append(MARKED_NOW_HEADER.format(tm[0] + 1, tm[1].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
+                                    tm[2].astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
 
     for m in markers:
         user = get_user(db, m.user_id)
-        line += MARKED_USER_LINE.format(user.user_fio, m.timestamp.strftime('%H:%M'))
-    line += SEPARATOR
+        line.append(MARKED_USER_LINE.format(user.user_fio, m.add_timestamp.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
+
+    line.append(SEPARATOR)
+    line = "\n".join(line)
     await msg.answer(line, reply_markup=keyboard)
 
 
@@ -531,7 +530,8 @@ async def get_marks_today(msg: Message, state: FSMContext):
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
     schedule = sorted(get_schedule(db), key=lambda a: time.fromisoformat(a["start"]))
-    line = "Отмеченные на: \n"
+    line = []
+    line.append("Отмеченные на:")
     for s in schedule:
         start = time.fromisoformat(s["start"])
         end = time.fromisoformat(s["end"])
@@ -542,17 +542,18 @@ async def get_marks_today(msg: Message, state: FSMContext):
         if not markers_in_lesson:
             continue
 
-        line += MARKED_LESSON_LINE.format(schedule.index(s) + 1,
+        line.append(MARKED_LESSON_LINE.format(schedule.index(s) + 1,
                                           dts.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
-                                          dte.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'))
+                                          dte.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
         # if not markers_in_lesson:
         #     line += "Никто не отметился"
         for m in markers_in_lesson:
             user = get_user(db, m.user_id)
-            line += MARKED_USER_LINE.format(user.user_fio,
+            line.append(MARKED_USER_LINE.format(user.user_fio,
                                             m.add_timestamp.astimezone(pytz.timezone("Europe/Moscow")).strftime(
-                                                '%H:%M'))
-        line += SEPARATOR
+                                                '%H:%M')))
+        line.append(SEPARATOR)
+    line = "\n".join(line)
     await msg.answer(line, reply_markup=keyboard)
 
 
@@ -600,7 +601,8 @@ async def process_date_for_marks(msg: Message, state: FSMContext):
         await msg.answer(NO_MARKS_YET, reply_markup=keyboard)
         return
     schedule = sorted(get_schedule(db), key=lambda a: time.fromisoformat(a["start"]))
-    line = MARKED_ON_DATE_HEADER.format(text)
+    line = []
+    line.append(MARKED_ON_DATE_HEADER.format(text))
     for s in schedule:
         start = time.fromisoformat(s["start"])
         end = time.fromisoformat(s["end"])
@@ -609,17 +611,19 @@ async def process_date_for_marks(msg: Message, state: FSMContext):
         markers_in_lesson = list(filter(lambda m: start <= m.timestamp.astimezone(pytz.UTC).time() <= end, markers))
         if not markers_in_lesson:
             continue
-        line += MARKED_LESSON_LINE.format(schedule.index(s) + 1,
+        line.append(MARKED_LESSON_LINE.format(schedule.index(s) + 1,
                                           dts.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'),
-                                          dte.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M'))
+                                          dte.astimezone(pytz.timezone("Europe/Moscow")).strftime('%H:%M')))
         # if not markers_in_lesson:
         #     line += "Никто не отметился"
         for m in markers_in_lesson:
             user = get_user(db, m.user_id)
-            line += MARKED_USER_LINE.format(user.user_fio,
+            line.append(MARKED_USER_LINE.format(user.user_fio,
                                             m.add_timestamp.astimezone(pytz.timezone("Europe/Moscow")).strftime(
-                                                '%H:%M'))
-        line += "########\n"
+                                                '%H:%M')))
+
+        line.append(SEPARATOR)
+    line = "\n".join(line)
     await msg.answer(line, reply_markup=keyboard)
     # await state.set_state(Form.waiting_for_group_name)
 

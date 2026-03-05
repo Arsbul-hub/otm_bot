@@ -27,7 +27,6 @@ class Marker(BaseModel):
     add_timestamp = Column(DateTime(timezone=True))
     all_day = Column(Boolean)
 
-
 class EditableConfig(BaseModel):
     __tablename__ = "editable_configs"
     config_id = Column(Integer, primary_key=True)

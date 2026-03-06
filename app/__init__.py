@@ -16,7 +16,12 @@ import uvicorn
 import asyncio
 # from texts_loader import TextsLoader
 
-engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
+engine = create_engine(config.SQLALCHEMY_DATABASE_URI,
+                       pool_pre_ping=True,  # проверять соединение перед использованием
+                       pool_recycle=3600,  # пересоздавать соединения каждые 3600 секунд
+                       pool_siz=10,  # размер пула (можно настроить под нагрузку)
+                       max_overflow=20
+                       )
 SessionMaker = sessionmaker(autoflush=False, bind=engine)
 # db = SessionMaker()
 BaseModel.metadata.create_all(engine)

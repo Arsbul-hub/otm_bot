@@ -5,6 +5,8 @@ from aiogram.enums import ParseMode
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.middlewares import DBSessionMiddleware
 from config import config
 from app.dao.models import BaseModel
 from app.background_tasks import cleanapp, cleancodes
@@ -16,11 +18,12 @@ import asyncio
 
 engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
 SessionMaker = sessionmaker(autoflush=False, bind=engine)
-db = SessionMaker()
+# db = SessionMaker()
 BaseModel.metadata.create_all(engine)
 bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN))
 
 dp = Dispatcher(storage=MemoryStorage())
+dp.update.middleware(DBSessionMiddleware(SessionMaker))
 # textsLoader = TextsLoader()
 # TEXTS = textsLoader.texts
 

@@ -12,17 +12,17 @@ from app.keyboards import *
 from app import texts
 from app import answers
 from app.dao import *
-from app import db
+
 from app.form import Form
 from requests import get, post
 from datetime import datetime, timedelta, time, date
-
+from sqlalchemy.orm import Session
 from app.texts import *
 from common import clear_state, save_schedule_and_exit, is_user_admin
 
 
 @router.message(F.text.isdigit(), ~IsUserRegistered(), F.text.len() == config.CODE_LENGTH)
-async def process_code_input(msg: Message, state: FSMContext):
+async def process_code_input(msg: Message, state: FSMContext, db: Session):
     wrong_attempt = await state.get_value("wrong_code_attempt")
     last_wrong_attempt = await state.get_value("wrong_last_code_attempt")
     if wrong_attempt is not None and wrong_attempt > config.MAX_WRONG_ATTEMPT_COUNT and (
@@ -58,7 +58,7 @@ async def process_code_input(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.GET_CODE, IsUserRegistered(), IsElder())
-async def resent_code(msg: Message, state: FSMContext):
+async def resent_code(msg: Message, state: FSMContext, db: Session):
     code = get_code_by_owner_id(db, msg.from_user.id)
     if code is not None:
         await msg.answer(PROVIDE_CODE_FOR_GROUP.format(code.code),
@@ -71,7 +71,7 @@ async def resent_code(msg: Message, state: FSMContext):
 
 
 @router.message(F.text.in_(["/start", answers.RESTART]))
-async def cmd_start_or_restart(msg: Message, state: FSMContext):
+async def cmd_start_or_restart(msg: Message, state: FSMContext, db: Session):
     await clear_state(state)
     # if not IsUserRegistered():
     #     await msg.answer(YOU_HAS_PROBLEM_WITH_REGISTER)
@@ -103,7 +103,7 @@ async def cmd_start_or_restart(msg: Message, state: FSMContext):
 
 @router.message(StateFilter(Form.schedule_editing),
                 F.text == answers.BACK)
-async def back_from_schedule_edit(msg: Message, state: FSMContext):
+async def back_from_schedule_edit(msg: Message, state: FSMContext, db: Session):
     # Просто выходим из редактора без сохранения, если пользователь хочет в главное меню
     user = get_user(db, msg.from_user.id)
     await state.clear()
@@ -117,14 +117,14 @@ async def back_from_schedule_edit(msg: Message, state: FSMContext):
     await msg.answer(MAIN_MENU, reply_markup=keyboard)
 @router.message(StateFilter(Form.waiting_for_lesson_start, Form.waiting_for_lesson_end,
                             Form.waiting_for_remove_index), F.text == answers.STOP)
-async def stop_process_from_schedule_edit(msg: Message, state: FSMContext):
+async def stop_process_from_schedule_edit(msg: Message, state: FSMContext, db: Session):
     # Просто выходим из редактора без сохранения, если пользователь хочет в главное меню
     user = get_user(db, msg.from_user.id)
     await state.clear()
     await state.set_state(Form.schedule_editing)
     await msg.answer(STOPPED, reply_markup=schedule_edit_keyboard())
 @router.message(F.text == answers.SCHEDULE_SETTINGS)
-async def admin_schedule_settings(msg: Message, state: FSMContext):
+async def admin_schedule_settings(msg: Message, state: FSMContext, db: Session):
     # Загружаем текущее расписание из БД в состояние
     current_schedule = get_schedule(db)
     await state.update_data(editable_schedule=current_schedule.copy())  # рабочая копия
@@ -133,13 +133,13 @@ async def admin_schedule_settings(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.schedule_editing), F.text == answers.ADD_LESSON)
-async def add_lesson_prompt_start(msg: Message, state: FSMContext):
+async def add_lesson_prompt_start(msg: Message, state: FSMContext, db: Session):
     await msg.answer(ENTER_LESSON_START_PROMPT, reply_markup=stop_processing_keyboard())
     await state.set_state(Form.waiting_for_lesson_start)
 
 
 @router.message(StateFilter(Form.waiting_for_lesson_start))
-async def process_lesson_start_input(msg: Message, state: FSMContext):
+async def process_lesson_start_input(msg: Message, state: FSMContext, db: Session):
     start_str = msg.text.strip()
     try:
         start_time_local = datetime.strptime(start_str, "%H:%M").time()
@@ -159,7 +159,7 @@ async def process_lesson_start_input(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_lesson_end))
-async def save_new_lesson(msg: Message, state: FSMContext):
+async def save_new_lesson(msg: Message, state: FSMContext, db: Session):
     end_str = msg.text.strip()
 
     # Парсим введённое время окончания (локальное, МСК)
@@ -209,7 +209,7 @@ async def save_new_lesson(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.schedule_editing), F.text == answers.REMOVE_LESSON)
-async def remove_lesson_prompt(msg: Message, state: FSMContext):
+async def remove_lesson_prompt(msg: Message, state: FSMContext, db: Session):
     data = await state.get_data()
     editable = get_schedule(db)
     if not editable:
@@ -229,7 +229,7 @@ async def remove_lesson_prompt(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_remove_index))
-async def process_remove_lesson(msg: Message, state: FSMContext):
+async def process_remove_lesson(msg: Message, state: FSMContext, db: Session):
     try:
         idx = int(msg.text.strip())
     except ValueError:
@@ -253,7 +253,7 @@ async def process_remove_lesson(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.schedule_editing), F.text == answers.SHOW_CURRENT)
-async def show_editable_schedule(msg: Message, state: FSMContext):
+async def show_editable_schedule(msg: Message, state: FSMContext, db: Session):
     data = await state.get_data()
     editable = get_schedule(db)
     if not editable:
@@ -270,7 +270,7 @@ async def show_editable_schedule(msg: Message, state: FSMContext):
 
 
 # @router.message(StateFilter(Form.schedule_editing), F.text == answers.CANCEL_CHANGES)
-# async def cancel_schedule_edit(msg: Message, state: FSMContext):
+# async def cancel_schedule_edit(msg: Message, state: FSMContext, db: Session):
 #     await state.clear()
 #     await msg.answer(CHANGES_CANCELED)
 #     await msg.answer(MAIN_MENU, reply_markup=admin_start_keyboard2())
@@ -278,7 +278,7 @@ async def show_editable_schedule(msg: Message, state: FSMContext):
 
 # Просмотр расписания из основного админ-меню (без редактирования)
 @router.message(F.text == answers.VIEW_SCHEDULE)
-async def view_schedule(msg: Message, state: FSMContext):
+async def view_schedule(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if not user or not user.is_elder:
         await msg.answer(ACCESS_DENIED)
@@ -301,7 +301,7 @@ async def view_schedule(msg: Message, state: FSMContext):
 
 # Обработка "Назад" из меню управления расписанием (если не в режиме редактирования)
 @router.message(F.text == answers.BACK)
-async def back_to_main_menu(msg: Message, state: FSMContext):
+async def back_to_main_menu(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user and user.is_elder:
         await msg.answer(MAIN_MENU, reply_markup=admin_start_keyboard2())
@@ -310,7 +310,7 @@ async def back_to_main_menu(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_regular_fio))
-async def process_regular_fio(msg: Message, state: FSMContext):
+async def process_regular_fio(msg: Message, state: FSMContext, db: Session):
     fio = msg.text
     if len(fio) > 30:
         await msg.answer(LINE_IS_LONG)
@@ -329,14 +329,14 @@ async def process_regular_fio(msg: Message, state: FSMContext):
 
 
 # @router.message(F.text == "Подключить одногрупников")
-# async def start_handler4(msg: Message, state: FSMContext):
+# async def start_handler4(msg: Message, state: FSMContext, db: Session):
 #     await msg.answer(GREETING_TEXT, reply_markup=start_keyboard())
 #     # await state.update_data({"config_state": 0})
 #     # await state.update_data({"token": None})
 
 
 @router.message(F.text == answers.I_AM_REGULAR)
-async def i_am_regular(msg: Message, state: FSMContext):
+async def i_am_regular(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user is not None:
         await msg.answer(ALREADY_REGISTERED, reply_markup=start_keyboard())
@@ -345,7 +345,7 @@ async def i_am_regular(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.I_AM_ELDER)
-async def i_am_elder(msg: Message, state: FSMContext):
+async def i_am_elder(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user is not None:
         group = get_group(db, user.group_id)
@@ -359,7 +359,7 @@ async def i_am_elder(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_elder_fio))
-async def process_elder_fio(msg: Message, state: FSMContext):
+async def process_elder_fio(msg: Message, state: FSMContext, db: Session):
     fio = msg.text
     if len(fio) > 30:
         await msg.answer(LINE_IS_LONG)
@@ -372,7 +372,7 @@ async def process_elder_fio(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_group_name))
-async def process_group_name(msg: Message, state: FSMContext):
+async def process_group_name(msg: Message, state: FSMContext, db: Session):
     group_name = msg.text
     if len(group_name) > 10:
         await msg.answer(LINE_IS_LONG)
@@ -393,7 +393,7 @@ async def process_group_name(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_confirm_registration))
-async def process_group_name(msg: Message, state: FSMContext):
+async def process_group_name(msg: Message, state: FSMContext, db: Session):
     user_fio = await state.get_value("user_fio")
     group_name = await state.get_value("group_name")
     user_type = await state.get_value("user_type")
@@ -420,7 +420,7 @@ async def process_group_name(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.I_AM_HERE_NOW, IsUserRegistered())
-async def mark_current_lesson(msg: Message, state: FSMContext):
+async def mark_current_lesson(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
         if is_user_admin(msg.from_user.id):
@@ -458,7 +458,7 @@ async def mark_current_lesson(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.I_AM_HERE_TODAY, IsUserRegistered())
-async def mark_today(msg: Message, state: FSMContext):
+async def mark_today(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
         if is_user_admin(msg.from_user.id):
@@ -492,7 +492,7 @@ async def mark_today(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.GET_CHECKS_NOW, IsUserRegistered())
-async def get_marks_current_lesson(msg: Message, state: FSMContext):
+async def get_marks_current_lesson(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
 
     if user.is_elder:
@@ -528,7 +528,7 @@ async def get_marks_current_lesson(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.GET_CHECKS_TODAY, IsUserRegistered())
-async def get_marks_today(msg: Message, state: FSMContext):
+async def get_marks_today(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
 
     if user.is_elder:
@@ -575,7 +575,7 @@ async def get_marks_today(msg: Message, state: FSMContext):
 
 
 @router.message(F.text == answers.GET_CHECKS_ON_DATE, IsUserRegistered())
-async def prompt_for_date(msg: Message, state: FSMContext):
+async def prompt_for_date(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
 
     await msg.answer(ENTER_DATE_PROMPT)
@@ -584,7 +584,7 @@ async def prompt_for_date(msg: Message, state: FSMContext):
 
 
 @router.message(StateFilter(Form.waiting_for_date_for_checks))
-async def process_date_for_marks(msg: Message, state: FSMContext):
+async def process_date_for_marks(msg: Message, state: FSMContext, db: Session):
     user = get_user(db, msg.from_user.id)
     if user.is_elder:
         if is_user_admin(msg.from_user.id):
@@ -647,5 +647,5 @@ async def process_date_for_marks(msg: Message, state: FSMContext):
     # await state.set_state(Form.waiting_for_group_name)
 
 # @router.message(~IsUserRegistered())
-# async def shoot_unregister_full(msg: Message, state: FSMContext):
+# async def shoot_unregister_full(msg: Message, state: FSMContext, db: Session):
 #     await msg.answer(YOU_HAS_PROBLEM_WITH_REGISTER, reply_markup=start_keyboard())
